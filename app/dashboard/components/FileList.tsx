@@ -5,8 +5,8 @@ import { Eye, Download, Trash2, Folder, AlertCircle, FileText, X, Upload, Loader
 import { useFiles } from '@/hooks/useFiles';
 import { formatFileSize, formatDate } from '@/lib/utils/formatters';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { FilePreview } from './FilePreview';
-import { FileIcon } from './FileIcon';
+import { FilePreview } from '../../../components/FilePreview';
+import { FileIcon } from '../../../components/FileIcon';
 import type { File } from '@/types';
 
 interface FileListProps {

@@ -1,7 +1,7 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { UserManagement } from '@/components/UserManagement';
+import { UserManagement } from '@/app/users/components/UserManagement';
 
 function UsersContent() {
   return <UserManagement />;

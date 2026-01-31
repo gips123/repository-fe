@@ -1,7 +1,7 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { FileList } from '@/components/FileList';
+import { FileList } from '@/app/dashboard/components/FileList';
 import { DashboardStats } from '@/components/DashboardStats';
 import { AllFoldersView } from '@/components/AllFoldersView';
 import { RecentFilesView } from '@/components/RecentFilesView';
