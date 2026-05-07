@@ -601,8 +601,8 @@ export function Login() {
             </div>
 
             <div className="login-footer">
-              Akses hanya untuk sivitas akademika FIK UPNVJ.<br />
-              Hubungi <a href="mailto:admin@fik.upnvj.ac.id">admin@fik.upnvj.ac.id</a> jika ada kendala.
+              {/* Akses hanya untuk sivitas akademika FIK UPNVJ.<br />
+              Hubungi <a href="mailto:admin@fik.upnvj.ac.id">admin@fik.upnvj.ac.id</a> jika ada kendala. */}
             </div>
 
           </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/context/AuthContext';
 import { useFolderContext } from '@/context/FolderContext';
@@ -12,17 +13,62 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { selectedFolderId, setSelectedFolderId } = useFolderContext();
 
+  const [sidebarWidth, setSidebarWidth] = useState(288); // Default 288px (w-72)
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault(); // Prevent text selection while dragging
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing) {
+      const newWidth = e.clientX;
+      if (newWidth >= 200 && newWidth <= 800) {
+        setSidebarWidth(newWidth);
+      }
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing, resize, stopResizing]);
+
   if (!user) {
     return <>{children}</>;
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar - Full Height from Top */}
-      <div className="w-72 shrink-0 border-r border-gray-200 bg-white shadow-lg">
-        <FolderTree
-          selectedFolderId={selectedFolderId}
-          onFolderSelect={setSelectedFolderId}
+    <div className={`flex h-screen bg-gray-50 ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
+      {/* Sidebar - Resizable */}
+      <div 
+        ref={sidebarRef}
+        className="relative shrink-0 border-r border-gray-200 bg-white shadow-lg flex flex-col"
+        style={{ width: sidebarWidth }}
+      >
+        <div className="flex-1 overflow-hidden">
+          <FolderTree
+            selectedFolderId={selectedFolderId}
+            onFolderSelect={setSelectedFolderId}
+          />
+        </div>
+        {/* Resizer Handle */}
+        <div 
+          className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-orange-500/30 active:bg-orange-500/50 transition-colors z-20"
+          onMouseDown={startResizing}
+          title="Drag to resize"
         />
       </div>
 
