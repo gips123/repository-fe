@@ -31,8 +31,46 @@ export function useRoles() {
   }, [roles]);
 
   const getRoleByName = useCallback((name: string): Role | undefined => {
-    return roles.find(role => role.name === name);
+    return roles.find(role => role.name.toLowerCase() === name.toLowerCase());
   }, [roles]);
+
+  const createRole = useCallback(async (data: {
+    name: string;
+    description?: string;
+    is_admin?: boolean;
+    category?: string | null;
+    color?: string | null;
+    max_folder_depth?: number | null;
+  }): Promise<Role> => {
+    const newRole = await apiClient.createRole(data);
+    setRoles(prev => [...prev, newRole]);
+    return newRole;
+  }, []);
+
+  const updateRole = useCallback(async (id: string, data: Partial<{
+    name: string;
+    description: string;
+    is_admin: boolean;
+    is_active: boolean;
+    category: string | null;
+    color: string | null;
+    max_folder_depth: number | null;
+  }>): Promise<Role> => {
+    const updated = await apiClient.updateRole(id, data);
+    setRoles(prev => prev.map(r => r.id === id ? updated : r));
+    return updated;
+  }, []);
+
+  const deleteRole = useCallback(async (id: string): Promise<void> => {
+    await apiClient.deleteRole(id);
+    setRoles(prev => prev.filter(r => r.id !== id));
+  }, []);
+
+  const toggleRoleActive = useCallback(async (id: string): Promise<Role> => {
+    const updated = await apiClient.toggleRoleActive(id);
+    setRoles(prev => prev.map(r => r.id === id ? updated : r));
+    return updated;
+  }, []);
 
   return {
     roles,
@@ -41,7 +79,9 @@ export function useRoles() {
     fetchRoles,
     getRoleById,
     getRoleByName,
+    createRole,
+    updateRole,
+    deleteRole,
+    toggleRoleActive,
   };
 }
-
-

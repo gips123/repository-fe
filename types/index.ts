@@ -1,3 +1,28 @@
+// Role Types
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  is_admin: boolean;
+  is_active: boolean;
+  is_system: boolean;
+  category: string | null;
+  color: string | null;
+  max_folder_depth?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserRole {
+  id: string;
+  user_id: string;
+  role_id: string;
+  role: Role;
+  is_primary: boolean;
+  assigned_at: string;
+  expires_at: string | null;
+}
+
 // User Types
 export interface User {
   id: string;
@@ -5,18 +30,10 @@ export interface User {
   name: string;
   role_id: string;
   role: Role;
+  roles?: UserRole[];
   max_folder_depth?: number | null;
   created_at: string;
   updated_at: string;
-}
-
-export interface Role {
-  id: string;
-  name: 'admin' | 'super admin' | 'wd1' | 'wd2' | 'wd3' | 'dosen' | 'tendik';
-  description: string;
-  max_folder_depth?: number | null;
-  created_at?: string;
-  updated_at?: string;
 }
 
 // Folder Types
@@ -108,4 +125,18 @@ export interface ErrorResponse {
 export interface LoginResponse {
   access_token: string;
   user: User;
+}
+
+// Role assignment payload
+export interface AssignRolePayload {
+  role_id: string;
+  is_primary?: boolean;
+  expires_at?: string | null;
+}
+
+// Switch role response
+export interface SwitchRoleResponse {
+  access_token?: string;
+  user: User;
+  active_role: Role;
 }

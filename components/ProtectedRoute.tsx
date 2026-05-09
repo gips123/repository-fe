@@ -4,25 +4,36 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/context/AuthContext';
 
-export function ProtectedRoute({ 
-  children, 
-  requireAdmin = false 
-}: { 
+interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
-}) {
-  const { user, loading, isAdmin } = useAuthContext();
+  requireSuperAdmin?: boolean;
+  requireRole?: string;
+}
+
+export function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireSuperAdmin = false,
+  requireRole,
+}: ProtectedRouteProps) {
+  const { user, loading, isAdmin, isSuperAdmin, hasRole } = useAuthContext();
   const router = useRouter();
+
+  const meetsRequirement =
+    (!requireAdmin || isAdmin) &&
+    (!requireSuperAdmin || isSuperAdmin) &&
+    (!requireRole || hasRole(requireRole));
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         router.push('/login');
-      } else if (requireAdmin && !isAdmin) {
+      } else if (!meetsRequirement) {
         router.push('/dashboard');
       }
     }
-  }, [user, loading, isAdmin, requireAdmin, router]);
+  }, [user, loading, meetsRequirement, router]);
 
   if (loading) {
     return (
@@ -32,15 +43,9 @@ export function ProtectedRoute({
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
-  if (requireAdmin && !isAdmin) {
+  if (!user || !meetsRequirement) {
     return null;
   }
 
   return <>{children}</>;
 }
-
-

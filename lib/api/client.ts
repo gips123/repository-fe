@@ -1,12 +1,15 @@
 import type {
   User,
   Role,
+  UserRole,
   Folder,
   FolderTreeNode,
   File as FileEntity,
   FolderPermission,
   PaginatedResponse,
   LoginResponse,
+  AssignRolePayload,
+  SwitchRoleResponse,
 } from '@/types';
 import { apiLogger } from './logger';
 
@@ -651,6 +654,83 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify({ roleIds, maxDepth }),
     });
+  }
+
+  async createRole(data: {
+    name: string;
+    description?: string;
+    is_admin?: boolean;
+    category?: string | null;
+    color?: string | null;
+    max_folder_depth?: number | null;
+  }): Promise<Role> {
+    return this.request<Role>('/roles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRole(id: string, data: Partial<{
+    name: string;
+    description: string;
+    is_admin: boolean;
+    is_active: boolean;
+    category: string | null;
+    color: string | null;
+    max_folder_depth: number | null;
+  }>): Promise<Role> {
+    return this.request<Role>(`/roles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRole(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/roles/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleRoleActive(id: string): Promise<Role> {
+    return this.request<Role>(`/roles/${id}/toggle-active`, {
+      method: 'PATCH',
+    });
+  }
+
+  // ========== Multi-Role Assignment ==========
+  async getUserRoles(userId: string): Promise<UserRole[]> {
+    return this.request<UserRole[]>(`/users/${userId}/roles`);
+  }
+
+  async assignRoleToUser(userId: string, payload: AssignRolePayload): Promise<UserRole> {
+    return this.request<UserRole>(`/users/${userId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async removeRoleFromUser(userId: string, roleId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/users/${userId}/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setPrimaryRole(userId: string, roleId: string): Promise<UserRole> {
+    return this.request<UserRole>(`/users/${userId}/roles/${roleId}/set-primary`, {
+      method: 'PATCH',
+    });
+  }
+
+  // ========== Switch Role ==========
+  async switchActiveRole(roleId: string): Promise<SwitchRoleResponse> {
+    return this.request<SwitchRoleResponse>('/users/switch-role', {
+      method: 'POST',
+      body: JSON.stringify({ role_id: roleId }),
+    });
+  }
+
+  async getMyRoles(): Promise<UserRole[]> {
+    return this.request<UserRole[]>('/users/my-roles');
   }
 }
 
