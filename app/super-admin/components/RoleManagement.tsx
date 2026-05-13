@@ -316,7 +316,9 @@ export function RoleManagement() {
                     {user.roles && user.roles.filter(ur => !ur.is_primary).length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {user.roles.filter(ur => !ur.is_primary).map(ur => (
-                          <RoleBadge key={ur.role_id} role={ur.role} small />
+                          ur.role
+                            ? <RoleBadge key={ur.role_id} role={ur.role} small />
+                            : <span key={ur.role_id} className="text-xs text-gray-400 italic">—</span>
                         ))}
                       </div>
                     ) : (
@@ -400,7 +402,7 @@ export function RoleManagement() {
                     <div className="space-y-2 max-h-44 overflow-y-auto">
                       {userRoles.filter(ur => !ur.is_primary).map(ur => (
                         <div key={ur.role_id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
-                          <span className="text-sm font-medium text-gray-900 capitalize">{ur.role.name}</span>
+                          <span className="text-sm font-medium text-gray-900 capitalize">{ur.role?.name || 'Unknown Role'}</span>
                           <button
                             onClick={() => handleRemoveRole(ur.role_id, false)}
                             disabled={removingRoleId === ur.role_id}
