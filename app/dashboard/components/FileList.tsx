@@ -554,7 +554,7 @@ export function FileList({ folderId }: FileListProps) {
                 Rename
               </button>
             )}
-            {canDownload && (
+            {(canDownload || file.can_download) && (
               <button
                 onClick={() => handleDownload(file)}
                 className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-all hover:shadow-sm"

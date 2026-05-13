@@ -1,10 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Search, ChevronDown, Check } from 'lucide-react';
+import { X, Search, ChevronDown, Check, Download } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useAuthContext } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+
+interface SharableRole {
+  id: string;
+  name: string;
+}
+
+interface RoleShareState {
+  checked: boolean;
+  can_download: boolean;
+}
 
 interface FolderModalProps {
   isOpen: boolean;
@@ -26,18 +36,17 @@ export function FolderModal({
   refreshFolders
 }: FolderModalProps) {
   const { user } = useAuthContext();
-  const roleName = (typeof user?.role === 'object' ? user?.role?.name : user?.role)?.toLowerCase() || '';
-  const isWD1 = roleName === 'wd1' || roleName.includes('wakil dekan 1');
-  const isWD2 = roleName === 'wd2' || roleName.includes('wakil dekan 2');
-  const isWD3 = roleName === 'wd3' || roleName.includes('wakil dekan 3');
 
   const [folderName, setFolderName] = useState(initialFolderName);
-  const [shareWithWD1, setShareWithWD1] = useState(isWD1);
-  const [shareWithWD2, setShareWithWD2] = useState(isWD2);
-  const [shareWithWD3, setShareWithWD3] = useState(isWD3);
-  const [shareWithDosen, setShareWithDosen] = useState(false);
-  const [shareWithTendik, setShareWithTendik] = useState(false);
-  
+
+  // Dynamic roles from API
+  const [sharableRoles, setSharableRoles] = useState<SharableRole[]>([]);
+  const [roleShares, setRoleShares] = useState<Record<string, RoleShareState>>({});
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  // Owner's role ID to auto-check and disable
+  const ownerRoleId = user?.role_id || (typeof user?.role === 'object' ? user?.role?.id : null);
+
   const [users, setUsers] = useState<any[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string | null>(null);
@@ -45,23 +54,48 @@ export function FolderModal({
   const [userPermissions, setUserPermissions] = useState<Record<string, { read: boolean, download: boolean }>>({});
   const [loading, setLoading] = useState(false);
 
+  // Fetch sharable roles from API
+  const fetchSharableRoles = async () => {
+    try {
+      setRolesLoading(true);
+      const roles = await apiClient.getSharableRoles();
+      setSharableRoles(roles);
+    } catch (err) {
+      console.error('Failed to fetch sharable roles:', err);
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setFolderName(initialFolderName);
+      fetchSharableRoles();
       fetchUsers();
       if (editFolderId) {
         fetchFolderDetails(editFolderId);
       } else {
-        // Reset for new folder
-        setShareWithWD1(isWD1);
-        setShareWithWD2(isWD2);
-        setShareWithWD3(isWD3);
-        setShareWithDosen(false);
-        setShareWithTendik(false);
+        // Reset for new folder - only owner's role is auto-checked
+        setRoleShares({});
         setUserPermissions({});
       }
     }
   }, [isOpen, editFolderId, initialFolderName]);
+
+  // After roles are fetched, auto-check owner's role for new folders
+  useEffect(() => {
+    if (!editFolderId && sharableRoles.length > 0 && ownerRoleId) {
+      setRoleShares(prev => {
+        // Only set default if we haven't already set any role shares
+        if (Object.keys(prev).length === 0) {
+          return {
+            [ownerRoleId]: { checked: true, can_download: true }
+          };
+        }
+        return prev;
+      });
+    }
+  }, [sharableRoles, editFolderId, ownerRoleId]);
 
   const fetchUsers = async () => {
     try {
@@ -80,25 +114,21 @@ export function FolderModal({
       const folder = await apiClient.getFolder(id);
       setFolderName(folder.name);
 
-      // Reset first
-      setShareWithWD1(false);
-      setShareWithWD2(false);
-      setShareWithWD3(false);
-      setShareWithDosen(false);
-      setShareWithTendik(false);
+      // Fetch role permissions for this folder
+      const rolePerms = await apiClient.getFolderRolePermissions(id);
+      const newRoleShares: Record<string, RoleShareState> = {};
+      for (const rp of rolePerms) {
+        newRoleShares[rp.role_id] = {
+          checked: true,
+          can_download: rp.can_download,
+        };
+      }
+      setRoleShares(newRoleShares);
 
+      // Fetch user permissions
       const newPerms: Record<string, { read: boolean, download: boolean }> = {};
-
       if (folder.permissions) {
         folder.permissions.forEach((perm: any) => {
-          if (perm.role) {
-            const rName = perm.role.name.toLowerCase();
-            if (rName.includes('wd1') || rName.includes('wd 1') || rName.includes('wakil dekan 1')) setShareWithWD1(true);
-            if (rName.includes('wd2') || rName.includes('wd 2') || rName.includes('wakil dekan 2')) setShareWithWD2(true);
-            if (rName.includes('wd3') || rName.includes('wd 3') || rName.includes('wakil dekan 3')) setShareWithWD3(true);
-            if (rName.includes('dosen')) setShareWithDosen(true);
-            if (rName.includes('tendik')) setShareWithTendik(true);
-          }
           if (perm.user && perm.user_id && perm.user_id !== folder.owner_id) {
             newPerms[perm.user_id] = {
               read: perm.can_read,
@@ -118,12 +148,15 @@ export function FolderModal({
 
     try {
       setLoading(true);
-      const shareRoles: string[] = [];
-      if (shareWithWD1) shareRoles.push('Wakil Dekan 1');
-      if (shareWithWD2) shareRoles.push('Wakil Dekan 2');
-      if (shareWithWD3) shareRoles.push('Wakil Dekan 3');
-      if (shareWithDosen) shareRoles.push('Dosen');
-      if (shareWithTendik) shareRoles.push('Tendik');
+
+      // Build role_shares array from state
+      const roleSharesArray = Object.entries(roleShares)
+        .filter(([_, state]) => state.checked)
+        .filter(([roleId, _]) => roleId !== ownerRoleId) // Don't send owner's own role
+        .map(([roleId, state]) => ({
+          role_id: roleId,
+          can_download: state.can_download,
+        }));
 
       const uPerms = Object.entries(userPermissions)
         .map(([userId, perms]) => ({
@@ -139,7 +172,7 @@ export function FolderModal({
       if (editFolderId) {
         await apiClient.updateFolder(editFolderId, {
           name: folderName,
-          share_with_roles: shareRoles,
+          role_shares: roleSharesArray,
           user_permissions: uPerms
         });
         onSuccess(`Eksekusi pengaturan Folder "${folderName}" sukses diperbarui.`);
@@ -147,7 +180,7 @@ export function FolderModal({
         await apiClient.createFolder({
           name: folderName,
           parent_id: parentId || undefined,
-          share_with_roles: shareRoles.length > 0 ? shareRoles : undefined,
+          role_shares: roleSharesArray.length > 0 ? roleSharesArray : undefined,
           user_permissions: uPerms.length > 0 ? uPerms : undefined
         });
         onSuccess(`Folder "${folderName}" telah berhasil diciptakan.`);
@@ -189,6 +222,24 @@ export function FolderModal({
       (u.email && u.email.toLowerCase().includes(userSearchTerm.toLowerCase()));
     return matchesRole && matchesSearch;
   });
+
+  const toggleRoleAccess = (roleId: string) => {
+    setRoleShares(prev => {
+      const current = prev[roleId] || { checked: false, can_download: false };
+      if (current.checked) {
+        // Unchecking role also unchecks download
+        return { ...prev, [roleId]: { checked: false, can_download: false } };
+      }
+      return { ...prev, [roleId]: { checked: true, can_download: false } };
+    });
+  };
+
+  const toggleRoleDownload = (roleId: string) => {
+    setRoleShares(prev => {
+      const current = prev[roleId] || { checked: false, can_download: false };
+      return { ...prev, [roleId]: { ...current, can_download: !current.can_download } };
+    });
+  };
 
   const toggleUserPermission = (userId: string, perm: keyof { read: boolean, download: boolean }) => {
     setUserPermissions(prev => {
@@ -238,26 +289,59 @@ export function FolderModal({
             <div className="mb-6">
               <label className="mb-2 block text-sm font-semibold text-gray-700">Grup Role Sharing</label>
               <p className="text-xs text-gray-500 mb-3">Pilih role untuk membagikan akses keseluruhan ke folder ini.</p>
-              <div className="space-y-2">
-                {[
-                  { id: 'wd1', label: 'Wakil Dekan 1', checked: shareWithWD1, set: setShareWithWD1, disabled: isWD1 },
-                  { id: 'wd2', label: 'Wakil Dekan 2', checked: shareWithWD2, set: setShareWithWD2, disabled: isWD2 },
-                  { id: 'wd3', label: 'Wakil Dekan 3', checked: shareWithWD3, set: setShareWithWD3, disabled: isWD3 },
-                  { id: 'dosen', label: 'Dosen FIK', checked: shareWithDosen, set: setShareWithDosen, disabled: false },
-                  { id: 'tendik', label: 'Tenaga Kependidikan', checked: shareWithTendik, set: setShareWithTendik, disabled: false },
-                ].map(role => (
-                  <label key={role.id} className={`flex items-center gap-3 p-2 rounded-md border text-sm ${role.checked ? 'border-orange-200 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'} ${role.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                    <input
-                      type="checkbox"
-                      checked={role.checked}
-                      onChange={(e) => role.set(e.target.checked)}
-                      disabled={role.disabled}
-                      className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="font-medium text-gray-700">{role.label}</span>
-                  </label>
-                ))}
-              </div>
+              
+              {rolesLoading ? (
+                <div className="flex items-center gap-2 p-3 text-sm text-gray-500">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-600 border-t-transparent"></div>
+                  Memuat role...
+                </div>
+              ) : sharableRoles.length === 0 ? (
+                <p className="text-xs text-gray-400 italic p-2">Tidak ada role tersedia</p>
+              ) : (
+                <div className="space-y-2">
+                  {sharableRoles.map(role => {
+                    const state = roleShares[role.id] || { checked: false, can_download: false };
+                    const isOwnerRole = role.id === ownerRoleId;
+                    
+                    return (
+                      <div key={role.id} className={`rounded-md border transition-all ${state.checked ? 'border-orange-200 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        {/* Role access checkbox */}
+                        <label className={`flex items-center gap-3 p-2.5 text-sm ${isOwnerRole ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            checked={state.checked || isOwnerRole}
+                            onChange={() => !isOwnerRole && toggleRoleAccess(role.id)}
+                            disabled={isOwnerRole}
+                            className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="font-medium text-gray-700">{role.name}</span>
+                          {isOwnerRole && (
+                            <span className="ml-auto text-[10px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                              Role Anda
+                            </span>
+                          )}
+                        </label>
+                        
+                        {/* Can download sub-checkbox - only visible when role is checked */}
+                        {(state.checked || isOwnerRole) && !isOwnerRole && (
+                          <div className="border-t border-orange-100 bg-orange-50/50 px-2.5 pb-2.5 pt-1.5">
+                            <label className="flex items-center gap-2.5 cursor-pointer text-xs">
+                              <input
+                                type="checkbox"
+                                checked={state.can_download}
+                                onChange={() => toggleRoleDownload(role.id)}
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                              />
+                              <Download className="h-3 w-3 text-orange-500" />
+                              <span className="font-medium text-gray-600">Can Download Files</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

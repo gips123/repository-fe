@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Folder,
-  Clock,
   Users,
   Lock,
   Shield,
@@ -18,7 +17,6 @@ import {
   FileText,
   Trash2,
   Edit2,
-  Search,
   Check
 } from 'lucide-react';
 import Image from 'next/image';
@@ -151,10 +149,6 @@ interface FolderTreeProps {
 
 export function FolderTree({ selectedFolderId, onFolderSelect }: FolderTreeProps) {
   const { user, isAdmin, canCreateFolder } = useAuthContext();
-  const roleName = (typeof user?.role === 'object' ? user?.role?.name : user?.role)?.toLowerCase() || '';
-  const isWD1 = roleName === 'wd1' || roleName.includes('wakil dekan 1');
-  const isWD2 = roleName === 'wd2' || roleName.includes('wakil dekan 2');
-  const isWD3 = roleName === 'wd3' || roleName.includes('wakil dekan 3');
   const router = useRouter();
   const pathname = usePathname();
   const { activeMenu, setActiveMenu } = useFolderContext();
@@ -171,21 +165,9 @@ export function FolderTree({ selectedFolderId, onFolderSelect }: FolderTreeProps
   const [permissionToDelete, setPermissionToDelete] = useState<string | null>(null);
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [shareWithWD1, setShareWithWD1] = useState(isWD1);
-  const [shareWithWD2, setShareWithWD2] = useState(isWD2);
-  const [shareWithWD3, setShareWithWD3] = useState(isWD3);
-  const [shareWithDosen, setShareWithDosen] = useState(false);
-  const [shareWithTendik, setShareWithTendik] = useState(false);
 
-  // New states for enhanced modal
-  const [editFolderId, setEditFolderId] = useState<string | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string | null>(null);
-  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
-
-  // Default permissions for simplicity in demo
-  const [userPermissions, setUserPermissions] = useState<Record<string, { read: boolean, download: boolean }>>({});
+  // Folder edit state (FolderModal handles role sharing internally)
+  const [editFolderId, setEditFolderId] = useState<string | null>(null);;
 
   // Dynamic max folder depth from settings
   const [maxFolderDepth, setMaxFolderDepth] = useState(5);
@@ -206,22 +188,7 @@ export function FolderTree({ selectedFolderId, onFolderSelect }: FolderTreeProps
       .catch(err => console.error('Failed to fetch user stats:', err));
   }, []);
 
-  // Fetch users when component mounts (or when modal opens)
-  useState(() => {
-      apiClient.getUsers()
-        .then(res => {
-          const fetchedUsers = (res as any).data || res;
-          if (Array.isArray(fetchedUsers)) {
-            setUsers(fetchedUsers);
-          } else {
-            setUsers([]);
-          }
-        })
-      .catch(err => {
-        console.error('Failed to fetch users:', err);
-        setUsers([]);
-      });
-  });
+  // Users and role sharing are now handled internally by FolderModal
 
   const resetModal = () => {
     setNewFolderName('');
@@ -257,19 +224,6 @@ export function FolderTree({ selectedFolderId, onFolderSelect }: FolderTreeProps
     } finally {
       setLoadingDelete(false);
     }
-  };
-
-  const formatRoleName = (raw: string) => {
-    if (!raw) return 'User';
-    const norm = raw.toLowerCase().trim();
-    if (norm === 'wd1' || norm === 'wd 1') return 'Wakil Dekan 1';
-    if (norm === 'wd2' || norm === 'wd 2') return 'Wakil Dekan 2';
-    if (norm === 'wd3' || norm === 'wd 3') return 'Wakil Dekan 3';
-    if (norm === 'dosen') return 'Dosen';
-    if (norm === 'tendik') return 'Tendik';
-    if (norm.includes('super')) return 'Super Admin';
-    if (norm === 'admin') return 'Admin';
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
   };
 
   const handleCreateSubfolder = (parentId: string) => {

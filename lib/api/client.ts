@@ -146,6 +146,14 @@ class ApiClient {
     return this.request<Role[]>('/roles');
   }
 
+  /**
+   * Returns roles available for Group Role Sharing.
+   * Excludes Super Admin and system/internal roles.
+   */
+  async getSharableRoles(): Promise<Array<{ id: string; name: string }>> {
+    return this.request<Array<{ id: string; name: string }>>('/roles/sharable');
+  }
+
   async getUsers(page = 1, limit = 10): Promise<PaginatedResponse<User>> {
     return this.request<PaginatedResponse<User>>(
       `/users?page=${page}&limit=${limit}`
@@ -221,6 +229,7 @@ class ApiClient {
     name: string;
     parent_id?: string | null;
     share_with_roles?: string[];
+    role_shares?: Array<{ role_id: string; can_download: boolean }>;
     user_permissions?: any[];
   }): Promise<Folder> {
     return this.request<Folder>('/folders', {
@@ -231,12 +240,25 @@ class ApiClient {
 
   async updateFolder(
     id: string,
-    data: { name?: string; share_with_roles?: string[]; user_permissions?: any[] }
+    data: {
+      name?: string;
+      share_with_roles?: string[];
+      role_shares?: Array<{ role_id: string; can_download: boolean }>;
+      user_permissions?: any[];
+    }
   ): Promise<Folder> {
     return this.request<Folder>(`/folders/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  }
+
+  async getFolderRolePermissions(folderId: string): Promise<Array<{
+    role_id: string;
+    role_name: string;
+    can_download: boolean;
+  }>> {
+    return this.request(`/folders/${folderId}/role-permissions`);
   }
 
   async deleteFolder(id: string): Promise<{ message: string }> {
